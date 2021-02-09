@@ -266,6 +266,7 @@ class MetricForMultipleStructures(torch.nn.Module):
     Stores a metric for multiple structures, and an average Dice score across all structures.
     The class consumes pre-computed metric values, and only keeps an aggregate for later computing the
     averages. When averaging, metric values that are NaN are skipped.
+    This works with aggregation across multiple processes.
     """
 
     def __init__(self, ground_truth_ids: List[str], is_training: bool,

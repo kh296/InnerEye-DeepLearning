@@ -17,7 +17,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import metrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
-from InnerEye.ML.metrics_dict import DataframeLogger, Hue, MetricsDict, PredictionEntry, \
+from InnerEye.ML.metrics_dict import DEFAULT_PREDICTION_TARGET, DataframeLogger, Hue, MetricsDict, PredictionEntry, \
     ScalarMetricsDict, SequenceMetricsDict, average_metric_values
 from InnerEye.ML.utils.io_util import tabulate_dataframe
 
@@ -42,7 +42,7 @@ def test_metrics_dict1() -> None:
     Test insertion of scalar values into a MetricsDict.
     """
     m = MetricsDict()
-    assert m.get_hue_names() == [MetricsDict.DEFAULT_HUE_KEY]
+    assert m.get_hue_names() == [DEFAULT_PREDICTION_TARGET]
     name = "foo"
     v1 = 2.7
     v2 = 3.14
@@ -69,7 +69,7 @@ def test_metrics_dict1() -> None:
 @pytest.mark.parametrize("hues", [None, ["A", "B"]])
 def test_metrics_dict_flatten(hues: Optional[List[str]]) -> None:
     m = MetricsDict(hues=hues)
-    _hues = hues or [MetricsDict.DEFAULT_HUE_KEY] * 2
+    _hues = hues or [DEFAULT_PREDICTION_TARGET] * 2
     m.add_metric("foo", 1.0, hue=_hues[0])
     m.add_metric("foo", 2.0, hue=_hues[1])
     m.add_metric("bar", 3.0, hue=_hues[0])
@@ -79,7 +79,7 @@ def test_metrics_dict_flatten(hues: Optional[List[str]]) -> None:
         average = m.average(across_hues=True)
         # We should be able to flatten out all the singleton values that the `average` operation returns
         all_values = list(average.enumerate_single_values())
-        assert all_values == [(MetricsDict.DEFAULT_HUE_KEY, "foo", 1.5), (MetricsDict.DEFAULT_HUE_KEY, "bar", 3.5)]
+        assert all_values == [(DEFAULT_PREDICTION_TARGET, "foo", 1.5), (DEFAULT_PREDICTION_TARGET, "bar", 3.5)]
         # When trying to flatten off a dictionary that has two values, this should fail:
         with pytest.raises(ValueError) as ex:
             list(m.enumerate_single_values())
@@ -189,7 +189,7 @@ def test_load_metrics_from_df_with_hue() -> None:
     Test loading of per-epoch predictions from a dataframe when the dataframe contains a prediction_target column.
     """
     hue_name = "foo"
-    hues = [MetricsDict.DEFAULT_HUE_KEY] * 2 + [hue_name] * 2
+    hues = [DEFAULT_PREDICTION_TARGET] * 2 + [hue_name] * 2
     expected_epoch = 1
     expected_mode = ModelExecutionMode.VAL
     expected_labels = [1]
@@ -261,11 +261,11 @@ def test_metrics_dict_get_hues() -> None:
     Test to make sure metrics dict is configured properly with/without hues
     """
     m = MetricsDict()
-    assert m.get_hue_names() == [MetricsDict.DEFAULT_HUE_KEY]
+    assert m.get_hue_names() == [DEFAULT_PREDICTION_TARGET]
     assert m.get_hue_names(include_default=False) == []
     _hues = ["A", "B", "C"]
     m = MetricsDict(hues=_hues)
-    assert m.get_hue_names() == _hues + [MetricsDict.DEFAULT_HUE_KEY]
+    assert m.get_hue_names() == _hues + [DEFAULT_PREDICTION_TARGET]
     assert m.get_hue_names(include_default=False) == _hues
 
 
@@ -278,7 +278,7 @@ def test_metrics_store_mixed_hues() -> None:
     m.add_metric("foo", 1, hue="B")
     m.add_metric("bar", 2, hue="A")
     assert list(m.enumerate_single_values()) == \
-           [('A', 'bar', 2), ('B', 'foo', 1), (MetricsDict.DEFAULT_HUE_KEY, 'foo', 1)]
+           [('A', 'bar', 2), ('B', 'foo', 1), (DEFAULT_PREDICTION_TARGET, 'foo', 1)]
 
 
 def test_metrics_dict_to_string() -> None:
@@ -289,7 +289,7 @@ def test_metrics_dict_to_string() -> None:
     m.add_metric("foo", 1.0)
     m.add_metric("bar", math.pi)
     info_df = pd.DataFrame(columns=MetricsDict.DATAFRAME_COLUMNS)
-    info_df = info_df.append({MetricsDict.DATAFRAME_COLUMNS[0]: MetricsDict.DEFAULT_HUE_KEY,
+    info_df = info_df.append({MetricsDict.DATAFRAME_COLUMNS[0]: DEFAULT_PREDICTION_TARGET,
                               MetricsDict.DATAFRAME_COLUMNS[1]: "foo: 1.0000, bar: 3.1416"}, ignore_index=True)
     assert m.to_string() == tabulate_dataframe(info_df)
     assert m.to_string(tabulate=False) == info_df.to_string(index=False)
@@ -306,7 +306,7 @@ def test_metrics_dict_to_string_with_hues() -> None:
     info_df = pd.DataFrame(columns=MetricsDict.DATAFRAME_COLUMNS)
     info_df = info_df.append({MetricsDict.DATAFRAME_COLUMNS[0]: "G1",
                               MetricsDict.DATAFRAME_COLUMNS[1]: "bar: 3.1416, baz: 2.0000"}, ignore_index=True)
-    info_df = info_df.append({MetricsDict.DATAFRAME_COLUMNS[0]: MetricsDict.DEFAULT_HUE_KEY,
+    info_df = info_df.append({MetricsDict.DATAFRAME_COLUMNS[0]: DEFAULT_PREDICTION_TARGET,
                               MetricsDict.DATAFRAME_COLUMNS[1]: "foo: 1.0000"}, ignore_index=True)
     assert m.to_string() == tabulate_dataframe(info_df)
     assert m.to_string(tabulate=False) == info_df.to_string(index=False)
@@ -336,14 +336,14 @@ def test_classification_metrics_avg() -> None:
     can_enumerate = list(averaged.enumerate_single_values())
     assert len(can_enumerate) >= 8
     assert can_enumerate[0] == (hue1, MetricType.AREA_UNDER_ROC_CURVE.value, 1.0)
-    assert can_enumerate[-1] == (MetricsDict.DEFAULT_HUE_KEY, "foo", 1.5)
+    assert can_enumerate[-1] == (DEFAULT_PREDICTION_TARGET, "foo", 1.5)
 
     g2_averaged = averaged.values(hue=hue2)
     assert MetricType.AREA_UNDER_ROC_CURVE.value in g2_averaged
     assert g2_averaged[MetricType.AREA_UNDER_ROC_CURVE.value] == [expected_hue2_auc]
 
     averaged_across_hues = m.average(across_hues=True)
-    assert averaged_across_hues.get_hue_names() == [MetricsDict.DEFAULT_HUE_KEY]
+    assert averaged_across_hues.get_hue_names() == [DEFAULT_PREDICTION_TARGET]
     assert MetricType.AREA_UNDER_ROC_CURVE.value in averaged_across_hues.values()
     expected_averaged_auc = 0.5 * (expected_hue1_auc + expected_hue2_auc)
     assert averaged_across_hues.values()[MetricType.AREA_UNDER_ROC_CURVE.value] == [expected_averaged_auc]
@@ -455,8 +455,8 @@ def test_get_hue_name_from_target_index() -> None:
 
 def test_metrics_dict_with_default_hue() -> None:
     hue_name = "foo"
-    metrics_dict = MetricsDict(hues=[hue_name, MetricsDict.DEFAULT_HUE_KEY])
-    assert metrics_dict.get_hue_names(include_default=True) == [hue_name, MetricsDict.DEFAULT_HUE_KEY]
+    metrics_dict = MetricsDict(hues=[hue_name, DEFAULT_PREDICTION_TARGET])
+    assert metrics_dict.get_hue_names(include_default=True) == [hue_name, DEFAULT_PREDICTION_TARGET]
     assert metrics_dict.get_hue_names(include_default=False) == [hue_name]
 
 

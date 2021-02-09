@@ -19,7 +19,7 @@ from InnerEye.ML.configs.classification.DummyClassification import DummyClassifi
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
 from InnerEye.ML.lightning_metrics import AverageWithoutNan, MetricForMultipleStructures
 from InnerEye.ML.lightning_models import ScalarLightning
-from InnerEye.ML.metrics_dict import MetricsDict, get_column_name_for_logging
+from InnerEye.ML.metrics_dict import DEFAULT_PREDICTION_TARGET, get_column_name_for_logging
 
 
 def test_calculate_dice1() -> None:
@@ -157,7 +157,7 @@ def test_get_column_name_for_logging() -> None:
     expected_metric_name = INTERNAL_TO_LOGGING_COLUMN_NAMES[metric_name].value
     assert expected_metric_name \
            == get_column_name_for_logging(metric_name=metric_name) \
-           == get_column_name_for_logging(metric_name=metric_name, hue_name=MetricsDict.DEFAULT_HUE_KEY)
+           == get_column_name_for_logging(metric_name=metric_name, hue_name=DEFAULT_PREDICTION_TARGET)
     hue_name = "foo"
     assert f"{hue_name}/{expected_metric_name}" == \
            get_column_name_for_logging(metric_name=metric_name, hue_name=hue_name)

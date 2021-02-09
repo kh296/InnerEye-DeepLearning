@@ -20,7 +20,7 @@ from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, MetricForMultipleStructures, \
     OptimalThreshold
 from InnerEye.ML.metrics import compute_dice_across_patches
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DEFAULT_PREDICTION_TARGET, DataframeLogger, SequenceMetricsDict
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
@@ -183,7 +183,7 @@ class ScalarLightning(InnerEyeLightning):
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = [MetricsDict.DEFAULT_HUE_KEY]
+            self.target_names = [DEFAULT_PREDICTION_TARGET]
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.logits_to_posterior_fn = config.get_post_loss_logits_normalization_function()
@@ -331,7 +331,7 @@ class ScalarLightning(InnerEyeLightning):
         metric_computers = self.train_metric_computers if is_training else self.val_metric_computers
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         for prediction_target, metric_list in metric_computers.items():
-            target_suffix = "" if prediction_target == MetricsDict.DEFAULT_HUE_KEY else f"/{prediction_target}"
+            target_suffix = "" if prediction_target == DEFAULT_PREDICTION_TARGET else f"/{prediction_target}"
             for metric in metric_list:
                 if metric.has_predictions:
                     # Sequence models can have no predictions at all for particular positions, depending on the data.

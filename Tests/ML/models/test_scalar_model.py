@@ -24,7 +24,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
-from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
+from InnerEye.ML.metrics_dict import DEFAULT_PREDICTION_TARGET, MetricsDict, ScalarMetricsDict
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.config_util import ModelConfigLoader
@@ -301,7 +301,7 @@ def test_scalar_metrics(has_hues: bool, is_classification: bool) -> None:
     def _get_expected_info_str(index: Optional[int] = None) -> str:
         if index is not None:
             df = pd.DataFrame.from_dict({
-                MetricsDict.DATAFRAME_COLUMNS[0]: MetricsDict.DEFAULT_HUE_KEY,
+                MetricsDict.DATAFRAME_COLUMNS[0]: DEFAULT_PREDICTION_TARGET,
                 MetricsDict.DATAFRAME_COLUMNS[1]: [expected_info_format_strs[index]]
             })
         else:

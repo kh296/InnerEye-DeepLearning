@@ -27,6 +27,8 @@ from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_
 FloatOrInt = Union[float, int]
 T = TypeVar('T', np.ndarray, float)
 
+DEFAULT_PREDICTION_TARGET = "Default"
+
 
 def average_metric_values(values: List[float], skip_nan_when_averaging: bool) -> float:
     """
@@ -72,7 +74,7 @@ def get_metric_name_with_hue_prefix(metric_name: str, hue_name: Optional[str] = 
     If hue_name is provided and is not equal to the default hue then it will be
     used as a prefix hue_name/column_name, otherwise metric_name will be returned.
     """
-    prefix = f"{hue_name}/" if hue_name and hue_name is not MetricsDict.DEFAULT_HUE_KEY else ''
+    prefix = f"{hue_name}/" if hue_name and hue_name is not DEFAULT_PREDICTION_TARGET else ''
     return f"{prefix}{metric_name}"
 
 
@@ -189,7 +191,6 @@ class MetricsDict:
     structure, to perform independent aggregations.
     """
 
-    DEFAULT_HUE_KEY = "Default"
     # the columns used when metrics dict is converted to a data frame/string representation
     DATAFRAME_COLUMNS = [LoggingColumns.Hue.value, "metrics"]
 
@@ -199,17 +200,17 @@ class MetricsDict:
         default hue.
         :param is_classification_metrics: If this is a classification metrics dict
         """
-        if hues and MetricsDict.DEFAULT_HUE_KEY in hues:
-            hues.remove(MetricsDict.DEFAULT_HUE_KEY)
+        if hues and DEFAULT_PREDICTION_TARGET in hues:
+            hues.remove(DEFAULT_PREDICTION_TARGET)
         self.hues_without_default = hues or []
-        _hue_keys = self.hues_without_default + [MetricsDict.DEFAULT_HUE_KEY]
+        _hue_keys = self.hues_without_default + [DEFAULT_PREDICTION_TARGET]
         self.hues: OrderedDict[str, Hue] = OrderedDict([(x, Hue(name=x)) for x in _hue_keys])
         self.skip_nan_when_averaging: Dict[str, bool] = dict()
         self.row_labels: List[str] = list()
         self.is_classification_metrics = is_classification_metrics
         self.diagnostics: Dict[str, List[Any]] = dict()
 
-    def subject_ids(self, hue: str = DEFAULT_HUE_KEY) -> List[str]:
+    def subject_ids(self, hue: str = DEFAULT_PREDICTION_TARGET) -> List[str]:
         """
         Return the subject ids that have metrics associated with them in this dictionary.
         :param hue: If provided then subject ids belonging to this hue only will be returned.
@@ -224,10 +225,10 @@ class MetricsDict:
         """
         _hue_names = list(self.hues.keys())
         if not include_default:
-            _hue_names.remove(MetricsDict.DEFAULT_HUE_KEY)
+            _hue_names.remove(DEFAULT_PREDICTION_TARGET)
         return _hue_names
 
-    def get_single_metric(self, metric_name: MetricTypeOrStr, hue: str = DEFAULT_HUE_KEY) -> FloatOrInt:
+    def get_single_metric(self, metric_name: MetricTypeOrStr, hue: str = DEFAULT_PREDICTION_TARGET) -> FloatOrInt:
         """
         Gets the value stored for the given metric. The method assumes that there is a single value stored for the
         metric, and raises a ValueError if that is not the case.
@@ -241,7 +242,7 @@ class MetricsDict:
             return values[0]
         raise ValueError(f"Expected a single entry for metric '{name}', but got {len(values)}")
 
-    def has_prediction_entries(self, hue: str = DEFAULT_HUE_KEY) -> bool:
+    def has_prediction_entries(self, hue: str = DEFAULT_PREDICTION_TARGET) -> bool:
         """
         Returns True if the present object stores any entries for computing the Area Under Roc Curve metric.
         :param hue: will be used to check a particular hue otherwise default hue will be used.
@@ -249,7 +250,7 @@ class MetricsDict:
         """
         return self._get_hue(hue).has_prediction_entries
 
-    def values(self, hue: str = DEFAULT_HUE_KEY) -> Dict[str, Any]:
+    def values(self, hue: str = DEFAULT_PREDICTION_TARGET) -> Dict[str, Any]:
         """
         Returns values held currently in the dict
         :param hue: will be used to restrict values for the provided hue otherwise values in the default
@@ -271,7 +272,7 @@ class MetricsDict:
                    metric_name: Union[str, MetricType],
                    metric_value: FloatOrInt,
                    skip_nan_when_averaging: bool = False,
-                   hue: str = DEFAULT_HUE_KEY) -> None:
+                   hue: str = DEFAULT_PREDICTION_TARGET) -> None:
         """
         Adds values for a single metric to the present object, when the metric value is a scalar.
         :param metric_name: The name of the metric to add. This can be a string or a value in the MetricType enum.
@@ -295,7 +296,7 @@ class MetricsDict:
     def add_predictions(self, subject_ids: Sequence[str],
                         predictions: np.ndarray,
                         labels: np.ndarray,
-                        hue: str = DEFAULT_HUE_KEY) -> None:
+                        hue: str = DEFAULT_PREDICTION_TARGET) -> None:
         """
         Adds predictions and labels for later computing the area under the ROC curve.
         :param subject_ids: Subject ids associated with the predictions and labels.
@@ -309,7 +310,7 @@ class MetricsDict:
                                            labels=labels,
                                            predictions=predictions)
 
-    def num_entries(self, hue: str = DEFAULT_HUE_KEY) -> Dict[str, int]:
+    def num_entries(self, hue: str = DEFAULT_PREDICTION_TARGET) -> Dict[str, int]:
         """
         Gets the number of values that are stored for each individual metric.
         :param hue: The hue to count entries for, otherwise all entries will be counted.
@@ -383,14 +384,14 @@ class MetricsDict:
         else:
             return _fill_new_metrics_dict(MetricsDict(hues=self.get_hue_names(include_default=False)), average=True)
 
-    def get_accuracy_at05(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_accuracy_at05(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Returns the binary classification accuracy at threshold 0.5
         """
         return binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
                                               label=self.get_labels(hue=hue))
 
-    def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_HUE_KEY) -> Tuple:
+    def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_PREDICTION_TARGET) -> Tuple:
         """
         Computes the ROC to find the optimal cut-off i.e. the probability threshold for which the
         difference between true positive rate and false positive rate is smallest. Then, computes
@@ -409,7 +410,7 @@ class MetricsDict:
         false_positive_optimal = fpr[optimal_idx]
         return optimal_threshold, false_positive_optimal, false_negative_optimal, accuracy
 
-    def get_roc_auc(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_roc_auc(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Computes the Area Under the ROC curve, from the entries that were supplied in the add_roc_entries method.
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
@@ -427,7 +428,7 @@ class MetricsDict:
         else:
             return roc_auc_score(labels, predictions)
 
-    def get_pr_auc(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_pr_auc(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Computes the Area Under the Precision Recall Curve, from the entries that were supplied in the
         add_roc_entries method.
@@ -446,7 +447,7 @@ class MetricsDict:
         precision, recall, _ = precision_recall_curve(labels, predictions)
         return auc(recall, precision)
 
-    def get_cross_entropy(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_cross_entropy(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Computes the binary cross entropy from the entries that were supplied in the
         add_roc_entries method.
@@ -457,7 +458,7 @@ class MetricsDict:
         labels = self.get_labels(hue)
         return log_loss(labels, predictions)
 
-    def get_mean_absolute_error(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_mean_absolute_error(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Get the mean absolute error.
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
@@ -465,7 +466,7 @@ class MetricsDict:
         """
         return mean_absolute_error(model_output=self.get_predictions(hue), label=self.get_labels(hue))
 
-    def get_mean_squared_error(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_mean_squared_error(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Get the mean squared error.
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
@@ -473,7 +474,7 @@ class MetricsDict:
         """
         return mean_squared_error(model_output=self.get_predictions(hue), label=self.get_labels(hue))
 
-    def get_r2_score(self, hue: str = DEFAULT_HUE_KEY) -> float:
+    def get_r2_score(self, hue: str = DEFAULT_PREDICTION_TARGET) -> float:
         """
         Get the R2 score.
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
@@ -521,11 +522,11 @@ class MetricsDict:
         exactly 1 value, and it throws an exception if that is more than 1 value.
         :return: An iterator with (hue name, metric_name_and_value) pairs.
         """
-        _hues_to_iterate = [MetricsDict.DEFAULT_HUE_KEY] + self.get_hue_names(include_default=False)
+        _hues_to_iterate = [DEFAULT_PREDICTION_TARGET] + self.get_hue_names(include_default=False)
         for _hue in _hues_to_iterate:
             yield _hue, self._get_hue(_hue).enumerate_single_values()
 
-    def get_predictions(self, hue: str = DEFAULT_HUE_KEY) -> np.ndarray:
+    def get_predictions(self, hue: str = DEFAULT_PREDICTION_TARGET) -> np.ndarray:
         """
         Return a concatenated copy of the roc predictions stored internally.
         :param hue: The hue to restrict the values, otherwise all values will be used.
@@ -533,7 +534,7 @@ class MetricsDict:
         """
         return self._get_hue(hue).get_predictions()
 
-    def get_labels(self, hue: str = DEFAULT_HUE_KEY) -> np.ndarray:
+    def get_labels(self, hue: str = DEFAULT_PREDICTION_TARGET) -> np.ndarray:
         """
         Return a concatenated copy of the roc labels stored internally.
         :param hue: The hue to restrict the values, otherwise all values will be used.
@@ -541,7 +542,7 @@ class MetricsDict:
         """
         return self._get_hue(hue).get_labels()
 
-    def get_predictions_and_labels_per_subject(self, hue: str = DEFAULT_HUE_KEY) \
+    def get_predictions_and_labels_per_subject(self, hue: str = DEFAULT_PREDICTION_TARGET) \
             -> List[PredictionEntry[float]]:
         """
         Gets the per-subject labels and predictions that are stored in the present object.
@@ -581,7 +582,7 @@ class MetricsDict:
                                           MetricsDict.DATAFRAME_COLUMNS[1]: info_list_str}, ignore_index=True)
         return info_df
 
-    def _get_hue(self, hue: str = DEFAULT_HUE_KEY) -> Hue:
+    def _get_hue(self, hue: str = DEFAULT_PREDICTION_TARGET) -> Hue:
         """
         Get the hue record for the provided key.
         Raises a KeyError if the provided hue key does not exist.
@@ -650,7 +651,7 @@ class ScalarMetricsDict(MetricsDict):
                 mode_str, epoch, hue = name
             else:
                 mode_str, epoch = name
-                hue = MetricsDict.DEFAULT_HUE_KEY
+                hue = DEFAULT_PREDICTION_TARGET
             mode = ModelExecutionMode(mode_str)
             if mode not in result:
                 result[mode] = dict()

@@ -602,14 +602,6 @@ class ScalarMetricsDict(MetricsDict):
     def __init__(self, hues: Optional[List[str]] = None, is_classification_metrics: bool = True) -> None:
         super().__init__(hues, is_classification_metrics=is_classification_metrics)
 
-    def binary_classification_accuracy(self, hue: str = MetricsDict.DEFAULT_HUE_KEY) -> float:
-        """
-        :param hue: The hue to restrict the values, otherwise all values will be used.
-        :return: binary classification accuracy
-        """
-        return binary_classification_accuracy(model_output=self.get_predictions(hue=hue),
-                                              label=self.get_labels(hue=hue))
-
     def store_metrics_per_subject(self,
                                   df_logger: DataframeLogger,
                                   mode: ModelExecutionMode,

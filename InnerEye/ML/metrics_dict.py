@@ -123,7 +123,6 @@ class Hue:
         """
         Return a concatenated copy of the roc predictions stored internally.
         """
-
         return Hue._concat_if_needed(self.predictions)
 
     def get_labels(self) -> np.ndarray:
@@ -251,19 +250,6 @@ class MetricsDict:
         """
         return self._get_hue(hue).values
 
-    def add_diagnostics(self, name: str, value: Any) -> None:
-        """
-        Adds a diagnostic value to the present object. Multiple diagnostics can be stored per unique value of name,
-        the values get concatenated.
-        :param name: The name of the diagnostic value to store.
-        :param value: The value to store.
-        """
-        if name in self.diagnostics:
-            # There is already an entry, append to the end of the list
-            self.diagnostics[name].append(value)
-        else:
-            self.diagnostics[name] = [value]
-
     @staticmethod
     def _metric_name(metric_name: MetricTypeOrStr) -> str:
         """
@@ -297,17 +283,6 @@ class MetricsDict:
         else:
             raise ValueError(f"Expected the metric to be a scalar (float or int), but got: {type(metric_value)}")
         self.skip_nan_when_averaging[_metric_name] = skip_nan_when_averaging
-
-    def delete_metric(self,
-                      metric_name: Union[str, MetricType],
-                      hue: str = DEFAULT_HUE_KEY) -> None:
-        """
-        Deletes all values that are stored for a given metric from the present object.
-        :param metric_name: The name of the metric to add. This can be a string or a value in the MetricType enum.
-        :param hue: The hue for which this record belongs to, default hue will be used if None provided.
-        """
-        _metric_name = MetricsDict._metric_name(metric_name)
-        del self._get_hue(hue).values[_metric_name]
 
     def add_predictions(self, subject_ids: Sequence[str],
                         predictions: np.ndarray,

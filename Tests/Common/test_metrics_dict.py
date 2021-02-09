@@ -160,17 +160,6 @@ def test_metrics_dict_add_integer() -> None:
     assert m.values()["foo"] == [1.0]
 
 
-def test_delete_metric() -> None:
-    """
-    Deleting a set of metrics from the dictionary.
-    """
-    m = MetricsDict()
-    m.add_metric(MetricType.LOSS, 1)
-    assert m.values()[MetricType.LOSS.value] == [1.0]
-    m.delete_metric(MetricType.LOSS)
-    assert MetricType.LOSS.value not in m.values()
-
-
 def test_load_metrics_from_df() -> None:
     expected_epochs = [1] * 2 + [2] * 2
     expected_modes = [ModelExecutionMode.VAL, ModelExecutionMode.TEST] * 2
@@ -469,19 +458,6 @@ def test_metrics_dict_with_default_hue() -> None:
     metrics_dict = MetricsDict(hues=[hue_name, MetricsDict.DEFAULT_HUE_KEY])
     assert metrics_dict.get_hue_names(include_default=True) == [hue_name, MetricsDict.DEFAULT_HUE_KEY]
     assert metrics_dict.get_hue_names(include_default=False) == [hue_name]
-
-
-def test_diagnostics() -> None:
-    """
-    Test if we can store diagnostic values (no restrictions on data types) in the metrics dict.
-    """
-    name = "foo"
-    value1 = "something"
-    value2 = (1, 2, 3)
-    m = MetricsDict()
-    m.add_diagnostics(name, value1)
-    m.add_diagnostics(name, value2)
-    assert m.diagnostics == {name: [value1, value2]}
 
 
 def test_get_single_metric() -> None:

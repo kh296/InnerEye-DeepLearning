@@ -220,13 +220,6 @@ class MetricsDict:
             _hue_names.remove(MetricsDict.DEFAULT_HUE_KEY)
         return _hue_names
 
-    def delete_hue(self, hue: str) -> None:
-        """
-        Removes all data stored for the given hue from the present object.
-        :param hue: The hue to remove.
-        """
-        del self.hues[hue]
-
     def get_single_metric(self, metric_name: MetricTypeOrStr, hue: str = DEFAULT_HUE_KEY) -> FloatOrInt:
         """
         Gets the value stored for the given metric. The method assumes that there is a single value stored for the

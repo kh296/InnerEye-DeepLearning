@@ -484,17 +484,6 @@ def test_diagnostics() -> None:
     assert m.diagnostics == {name: [value1, value2]}
 
 
-def test_delete_hue() -> None:
-    h1 = "a"
-    h2 = "b"
-    a = MetricsDict(hues=[h1, h2])
-    a.add_metric("foo", 1.0, hue=h1)
-    a.add_metric("bar", 2.0, hue=h2)
-    a.delete_hue(h1)
-    assert a.get_hue_names(include_default=False) == [h2]
-    assert list(a.enumerate_single_values()) == [(h2, "bar", 2.0)]
-
-
 def test_get_single_metric() -> None:
     h1 = "a"
     m = MetricsDict(hues=[h1])

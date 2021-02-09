@@ -822,9 +822,11 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     else:
         # For classification runs, we also want to compute the aggregated training metrics for
         # each fold.
+        # This effectively populates predictions, but does not do anything beyond.
         metrics = ScalarMetricsDict.load_execution_mode_metrics_from_df(
             initial_metrics,
             config.model_category == ModelCategory.Classification)
+        # Compute all aggregate metrics from the individual predictions, add the subject count, and write to disk
         ScalarMetricsDict.aggregate_and_save_execution_mode_metrics(
             metrics=metrics,
             data_frame_logger=DataframeLogger(

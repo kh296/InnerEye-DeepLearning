@@ -17,7 +17,7 @@ from matplotlib.axes import Axes
 from sklearn.metrics import auc, precision_recall_curve, recall_score, roc_auc_score, roc_curve
 
 from InnerEye.Common.metrics_constants import LoggingColumns
-from InnerEye.ML.metrics_dict import MetricsDict, binary_classification_accuracy
+from InnerEye.ML.metrics_dict import binary_classification_accuracy, get_optimal_index_from_fpr_and_tpr
 from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.ML.utils.io_util import load_image_in_known_formats
 
@@ -108,7 +108,7 @@ def get_metric(val_metrics_csv: Path, test_metrics_csv: Path, metric: ReportedMe
     """
     results_val = get_results(val_metrics_csv)
     fpr, tpr, thresholds = roc_curve(results_val.labels, results_val.model_outputs)
-    optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
+    optimal_idx = get_optimal_index_from_fpr_and_tpr(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
 
     if metric is ReportedMetrics.OptimalThreshold:
@@ -187,7 +187,7 @@ def get_correct_and_misclassified_examples(val_metrics_csv: Path, test_metrics_c
                          f"in column {LoggingColumns.Patient.value} in the csv file.")
 
     fpr, tpr, thresholds = roc_curve(df_val[LoggingColumns.Label.value], df_val[LoggingColumns.ModelOutput.value])
-    optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
+    optimal_idx = get_optimal_index_from_fpr_and_tpr(fpr=fpr, tpr=tpr)
     optimal_threshold = thresholds[optimal_idx]
 
     df_test = pd.read_csv(test_metrics_csv)

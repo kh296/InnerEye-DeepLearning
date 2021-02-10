@@ -203,11 +203,11 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                         allow_None=True,
                                                         doc="The path of the dataset to use, when training is running "
                                                             "outside Azure.")
-    num_dataload_workers: int = param.Integer(8, bounds=(0, None),
-                                              doc="The number of data loading workers (processes). When set to 0,"
-                                                  "data loading is running in the same process (no process startup "
-                                                  "cost, hence good for use in unit testing. However, it "
-                                                  "does not give the same result as running with 1 worker process)")
+    num_dataload_workers: int = \
+        param.Integer(2, bounds=(0, None),
+                      doc="The number of data loading worker processes that bring data to an individual GPU. When set "
+                          "to 0, data loading is running in the same process (no process startup "
+                          "cost, hence good for use in unit testing).")
     shuffle: bool = param.Boolean(True, doc="If true, the dataset will be shuffled randomly during training.")
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
     start_epoch: int = param.Integer(0, bounds=(0, None), doc="The first epoch to train. Set to 0 to start a new "
@@ -258,15 +258,17 @@ class DeepLearningConfig(GenericConfig, CudaAwareConfig):
                                                            doc="Save epoch checkpoints when epoch number is a multiple "
                                                                "of recovery_checkpoint_save_interval. The intended use "
                                                                "is to allow restore training from failed runs.")
-    train_batch_size: int = param.Integer(4, bounds=(0, None),
-                                          doc="The number of crops that make up one minibatch during training.")
+    train_batch_size: int = \
+        param.Integer(4, bounds=(0, None),
+                      doc="The number of samples that make up one minibatch during training. This value is always "
+                          "given as samples per GPU, hence must not be scaled with number of GPUs or number of nodes.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
                                                          "training.")
-    use_model_parallel: bool = param.Boolean(False, doc="If true, neural network model is partitioned across all "
-                                                        "available GPUs to fit in a large model. It shall not be used "
-                                                        "together with data parallel.")
+    use_model_parallel: bool = \
+        param.Boolean(False, doc="If true, the neural network model is partitioned across all "
+                                 "available GPUs at inference time.")
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")

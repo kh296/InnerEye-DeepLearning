@@ -94,30 +94,26 @@ def segmentation_model_test(config: SegmentationModelBase,
     epoch_results_folder = config.outputs_folder / get_epoch_results_path(data_split, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
-    epoch_and_split = f"{data_split.value} set"
     epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                          data_split=data_split,
                                                          checkpoint_paths=checkpoints_to_test,
-                                                         results_folder=epoch_results_folder,
-                                                         epoch_and_split=epoch_and_split)
-    if epoch_dice_per_image is None:
-        raise ValueError("There was no single checkpoint file available for model testing.")
-    else:
-        epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
-        result = epoch_average_dice
-        logging.info(f"Mean Dice: {epoch_average_dice:4f}")
-        if model_proc == ModelProcessing.ENSEMBLE_CREATION:
-            # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
-            PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
+                                                         results_folder=epoch_results_folder)
+    epoch_average_dice: float = np.mean(epoch_dice_per_image) if len(epoch_dice_per_image) > 0 else 0
+    result = epoch_average_dice
+    logging.info(f"Mean Dice: {epoch_average_dice:4f}")
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
+        name = str(get_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+        PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
     return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
 
+
+# Need an average Dice across whole set
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   data_split: ModelExecutionMode,
                                   checkpoint_paths: List[Path],
-                                  results_folder: Path,
-                                  epoch_and_split: str) -> Optional[List[float]]:
+                                  results_folder: Path) -> List[float]:
     """
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
@@ -126,11 +122,11 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param config: The arguments which specify all required information.
     :param data_split: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results
-    :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
+    message = f"{data_split.value} set"
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder.mkdir(exist_ok=True)
 
@@ -138,7 +134,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     test_csv_path = results_folder / STORED_CSV_FILE_NAMES[data_split]
     test_dataframe.to_csv(path_or_buf=test_csv_path, index=False)
     logging.info("Results directory: {}".format(results_folder))
-    logging.info(f"Starting evaluation of model {config.model_name} on {epoch_and_split}")
+    logging.info(f"Starting evaluation of model {config.model_name} on {message}")
 
     # Write the dataset id and ground truth ids into the results folder
     store_run_information(results_folder, config.azure_dataset_id, config.ground_truth_ids, config.image_channels)
@@ -146,13 +142,6 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     ds = config.get_torch_dataset_for_inference(data_split)
 
     inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
-
-    if inference_pipeline is None:
-        # This will happen if there is no checkpoint for the given epoch, in either the recovered run (if any) or
-        # the current one.
-        return None
-
-    # for mypy
     assert isinstance(inference_pipeline, FullImageInferencePipelineBase)
 
     # Deploy the trained model on a set of images and store output arrays.
@@ -203,12 +192,12 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
         plt.figure()
         boxplot_per_structure(metrics_writer.to_data_frame(),
                               column_name=MetricsFileColumns.DiceNumeric.value,
-                              title=f"Dice score for {epoch_and_split}")
+                              title=f"Dice score for {message}")
         # The box plot file will be written to the output directory. AzureML will pick that up, and display
         # on the run overview page, without having to log to the run context.
         plotting.resize_and_save(5, 4, results_folder / BOXPLOT_FILE)
         plt.close()
-    logging.info(f"Finished evaluation of model {config.model_name} on {epoch_and_split}")
+    logging.info(f"Finished evaluation of model {config.model_name} on {message}")
 
     return average_dice
 
@@ -341,19 +330,14 @@ def store_run_information(results_folder: Path,
     save_lines_to_file(results_folder / IMAGE_CHANNEL_IDS_FILE, image_channels)
 
 
-def create_inference_pipeline(config: ModelConfigBase,
-                              checkpoint_paths: List[Path]) -> Optional[InferencePipelineBase]:
+def create_inference_pipeline(config: ModelConfigBase, checkpoint_paths: List[Path]) -> InferencePipelineBase:
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
-    If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
     :param config: Model related configs.
-    :param epoch: The epoch for which to create pipeline for.
-    :param run_recovery: RunRecovery data if applicable
+    :param checkpoint_paths: The list of checkpoints that should be used for inference. If there are > 1
+    checkpoints, an ensemble inference pipeline will be built.
     :return: FullImageInferencePipelineBase or ScalarInferencePipelineBase
     """
-    if not checkpoint_paths:
-        return None
-
     if len(checkpoint_paths) > 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
@@ -363,7 +347,7 @@ def create_inference_pipeline(config: ModelConfigBase,
             return ScalarEnsemblePipeline.create_from_checkpoint(paths_to_checkpoint=checkpoint_paths, config=config)
         else:
             raise NotImplementedError("Cannot create inference pipeline for unknown model type")
-    if len(checkpoint_paths) == 1:
+    elif len(checkpoint_paths) == 1:
         if config.is_segmentation_model:
             assert isinstance(config, SegmentationModelBase)
             return InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint_paths[0],
@@ -374,7 +358,8 @@ def create_inference_pipeline(config: ModelConfigBase,
                                                                   config=config)
         else:
             raise NotImplementedError("Cannot create ensemble pipeline for unknown model type")
-    return None
+    else:
+        raise ValueError("At least 1 checkpoint must be present")
 
 
 def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \

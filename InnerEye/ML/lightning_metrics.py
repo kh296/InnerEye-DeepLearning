@@ -12,7 +12,7 @@ from pytorch_lightning import metrics
 from pytorch_lightning.metrics import Metric
 from pytorch_lightning.metrics.functional import roc
 from pytorch_lightning.metrics.functional.classification import accuracy, auc, auroc, precision_recall_curve
-from torch.nn import ModuleList
+from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
 
@@ -259,6 +259,52 @@ class BinaryCrossEntropy(ScalarMetricsBase):
     def compute(self) -> torch.Tensor:
         preds, targets = self._get_preds_and_targets()
         return F.binary_cross_entropy(input=preds, target=targets)
+
+
+# map structure name - > AverageWithoutNan
+# map AverageDice -> AverageWithoutNan
+# remove is_training, replace with generic prefix. For Inference, this can be Inference/TestSet/...
+
+# Should I keep voxel count and Dice separate?
+# Could to str -> [Module: dice=... voxel_count=...]
+
+class SegmentationTrainingMetrics(torch.nn.Module):
+    """
+    Stores the metrics that we keep for training segmentation models: Dice and number of voxels for an
+    individual structure.
+    """
+
+    def __init__(self, prefix: str):
+        """
+        Creates a new instance of the class.
+        :param prefix: The string prefix that will be used for all metrics that this object stores.
+        """
+        super().__init__()
+        self.dice = AverageWithoutNan(name=prefix + MetricType.DICE.value)
+        self.voxel_count = AverageWithoutNan(name=prefix + MetricType.VOXEL_COUNT.value)
+
+
+class SegmentationInferenceMetrics(torch.nn.Module):
+    """
+    Stores the metrics that we keep for inference on segmentation models: Dice, Hausdorff, mean surface distance,
+    all for an individual structure.
+    """
+
+    def __init__(self, prefix: str):
+        """
+        Creates a new instance of the class.
+        :param prefix: The string prefix that will be used for all metrics that this object stores.
+        """
+        super().__init__()
+        self.dice = AverageWithoutNan(name=prefix + MetricType.DICE.value)
+        self.hausdorff = AverageWithoutNan(name=prefix + MetricType.HAUSDORFF_mm.value)
+        self.mean_surface = AverageWithoutNan(name=prefix + MetricType.MEAN_SURFACE_DIST_mm.value)
+
+
+def create_per_structure_metrics(ground_truth_ids: List[str], prefix: str) -> ModuleDict:
+    d = {name: SegmentationTrainingMetrics(prefix=prefix) for name in ground_truth_ids}
+    d[AVERAGE_DICE_SUFFIX] = AverageWithoutNan(name=prefix + MetricType.DICE.value)
+    return ModuleDict(d)
 
 
 class MetricForMultipleStructures(torch.nn.Module):
